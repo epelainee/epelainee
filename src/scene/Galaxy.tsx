@@ -17,6 +17,7 @@ import {
   buildStarShell,
   DRIFT_AMPLITUDE,
   DRIFT_SPEED,
+  ORBIT_SPEED,
   fieldFrame,
   fieldPoint,
 } from './galaxyLayout'
@@ -30,8 +31,8 @@ const dummy = new Object3D()
  * The field the star bursts into: one instanced sphere per experience, plus dust.
  *
  * The star and the field are the same points. At crush 0 every point sits inside
- * the star; at 1 it sits on its arc in the half-ellipse hung from the top of the
- * frame. So the burst is one number, and the two states cannot drift out of sync.
+ * the star; at 1 it sits on a ring orbiting the hub. So the burst is one number,
+ * and the two states cannot drift out of sync.
  *
  * Settled positions are recomputed in world space every frame from the camera's
  * measured frustum (see `fieldFrame`). They cannot be baked: the shape tracks the
@@ -239,9 +240,12 @@ export function Galaxy({
         const n = layout[i]
         const e = staggered(p, n.delay)
 
-        // Sway along the arc: continuous motion that cannot break the
-        // silhouette, unlike the rigid rotation a disc could get away with.
-        const angle = n.angle + Math.sin(t * DRIFT_SPEED + n.phase) * DRIFT_AMPLITUDE
+        // Full orbit around the hub, plus a little sway so rings do not look locked.
+        const spin = ORBIT_SPEED / Math.sqrt(Math.max(0.25, n.arc))
+        const angle =
+          n.angle +
+          t * spin +
+          Math.sin(t * DRIFT_SPEED + n.phase) * DRIFT_AMPLITUDE
         const [fx, fy] = fieldPoint(field, n.arc, angle)
 
         // Breathe/rock the collapsed position, not the group: a parent
@@ -292,8 +296,11 @@ export function Galaxy({
         const e = staggered(p, dust.delay[i])
         const i3 = i * 3
 
+        const spin = ORBIT_SPEED / Math.sqrt(Math.max(0.25, dust.arc[i]))
         const angle =
-          dust.angle[i] + Math.sin(t * DRIFT_SPEED + dust.phase[i]) * DRIFT_AMPLITUDE
+          dust.angle[i] +
+          t * spin +
+          Math.sin(t * DRIFT_SPEED + dust.phase[i]) * DRIFT_AMPLITUDE
         const [fx, fy] = fieldPoint(field, dust.arc[i], angle)
 
         const cx =

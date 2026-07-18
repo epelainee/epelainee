@@ -134,46 +134,50 @@ export function starPoint(
 }
 
 /**
- * The field the star bursts into: a half-ellipse hung from the top of the frame.
+ * The field the star bursts into: concentric elliptical orbits around the hub
+ * (screen centre), filling most of the frame.
  *
  * Nodes and dust are placed in a normalised polar space and mapped to world
  * coordinates every frame by `fieldFrame` below, which measures the camera's
  * actual frustum. Two reasons it works this way rather than as fixed world
  * positions:
  *
- *  - The shape has to track the SCREEN. Its whole point is filling the top of
- *    the frame edge to edge, and the frame's width and height depend on the
- *    viewport's aspect — anything fixed in world units fills a widescreen and
- *    crops a portrait.
+ *  - The shape has to track the SCREEN. The frame's width and height depend on
+ *    the viewport's aspect — anything fixed in world units fills a widescreen
+ *    and crops a portrait.
  *  - It cannot be done by scaling a parent group either, because the same points
  *    are the star at crush 0. A non-uniform group scale would squash the star.
  *    So the field is stretched, the star is not, and the two are interpolated in
  *    world space.
  */
 
-/** How far down the frame the arc reaches, as a fraction of frame height. */
-export const FIELD_REACH = 0.62
+/**
+ * Outer orbit vs half-height of the frustum. Below 1 leaves air for bottom
+ * chrome (name / mailto) plus a small margin so nodes don't kiss the text.
+ */
+export const FIELD_FILL_Y = 0.78
 
-/** Slight overhang, so the field runs off the left and right edges. */
-export const FIELD_OVERHANG = 1.04
+/** Outer orbit vs half-width — slight inset so sides don't clip hard. */
+export const FIELD_FILL_X = 0.92
 
-/** Angular inset from the top corners, so nodes don't sit exactly in them. */
-const ANGLE_MARGIN = 0.1
-
-/** Innermost and outermost arc, as a fraction of the field's radius. */
-const ARC_INNER = 0.4
+/** Innermost and outermost ring, as a fraction of the field's radius. */
+const ARC_INNER = 0.38
 const ARC_OUTER = 0.97
 
-/** Gentle sway along the arc: radians of swing, and how fast. */
-export const DRIFT_AMPLITUDE = 0.075
-export const DRIFT_SPEED = 0.16
+/**
+ * Angular speed around the hub (rad/s). Full rings can spin rigidly again —
+ * the old half-arc could not. Slight Kepler falloff so inner rings lap faster.
+ */
+export const ORBIT_SPEED = 0.045
+
+/** Tiny residual sway on top of the orbit, so rings do not look locked. */
+export const DRIFT_AMPLITUDE = 0.04
+export const DRIFT_SPEED = 0.22
 
 export type FieldFrame = {
-  /** Centre of the half-ellipse: the middle of the frame's top edge. */
-  centreY: number
-  /** Horizontal radius (to the frame's left/right edges). */
+  /** Horizontal radius of the outer orbit. */
   radiusX: number
-  /** Vertical radius (how far the arc reaches down the frame). */
+  /** Vertical radius of the outer orbit. */
   radiusY: number
   /** Keep-out radius around the hub, in world units. */
   clear: number
@@ -182,9 +186,9 @@ export type FieldFrame = {
 /**
  * Measures the camera's frame and returns the field's dimensions in world units.
  *
- * `clearPx` keeps nodes from landing under the hub and its category ring; it is
- * given in CSS pixels and converted here, since that is the space the ring is
- * actually sized in.
+ * Orbits are centred on the hub at the origin. `clearPx` keeps nodes from
+ * landing under the star and its category ring; it is given in CSS pixels and
+ * converted here, since that is the space the ring is actually sized in.
  */
 export function fieldFrame(
   cameraZ: number,
@@ -196,19 +200,17 @@ export function fieldFrame(
   const halfH = Math.tan((fovDeg * Math.PI) / 360) * cameraZ
   const halfW = halfH * (viewportW / viewportH)
   return {
-    centreY: halfH,
-    radiusX: halfW * FIELD_OVERHANG,
-    radiusY: halfH * 2 * FIELD_REACH,
+    radiusX: halfW * FIELD_FILL_X,
+    radiusY: halfH * FIELD_FILL_Y,
     clear: (clearPx / viewportH) * halfH * 2,
   }
 }
 
 /**
- * Places one point of the field, given its arc and angle, into world x/y.
+ * Places one point of the field, given its ring and angle, into world x/y.
  *
- * Angle 0 is the right end of the top edge, PI the left end, PI/2 straight down
- * through the middle — so the boundary at arc 1 is the arc itself. Points that
- * would land on the hub are pushed radially clear of it.
+ * Angle 0 is +X (right), increasing counter-clockwise — full 0..2π around the
+ * hub. Points that would land on the hub are pushed radially clear of it.
  */
 export function fieldPoint(
   f: FieldFrame,
@@ -216,7 +218,7 @@ export function fieldPoint(
   angle: number,
 ): [number, number] {
   let x = Math.cos(angle) * f.radiusX * arc
-  let y = f.centreY - Math.sin(angle) * f.radiusY * arc
+  let y = Math.sin(angle) * f.radiusY * arc
 
   const d = Math.hypot(x, y)
   if (d < f.clear && d > 1e-4) {
@@ -231,11 +233,11 @@ export type NodeLayout = {
   id: string
   category: CategoryId
   subcategory: string
-  /** Which arc of the field this node rides, 0..1. Set by its category. */
+  /** Which ring of the field this node rides, 0..1. Set by its category. */
   arc: number
-  /** Position along that arc, 0..PI. */
+  /** Position on that ring, 0..2π. */
   angle: number
-  /** Sway offset, so nodes don't drift in lockstep. */
+  /** Phase offset for residual sway, so nodes don't rock in lockstep. */
   phase: number
   /** Depth jitter, for a little parallax. */
   z: number
@@ -252,9 +254,9 @@ export type NodeLayout = {
 }
 
 /**
- * One arc per category, ordered by its position in CATEGORIES: the innermost
- * arc rides high near the top edge, the outermost traces the visible curve.
- * Nodes spread along their arc, with jitter so the arcs don't read as rigid.
+ * One ring per category, ordered by its position in CATEGORIES: innermost near
+ * the hub, outermost near the frame edge. Nodes spread around the full orbit,
+ * with jitter so the rings don't read as rigid.
  */
 export function buildLayout(): NodeLayout[] {
   const byCategory = new Map<CategoryId, typeof EXPERIENCES>()
@@ -273,8 +275,8 @@ export function buildLayout(): NodeLayout[] {
 
     items.forEach((exp, i) => {
       const id = exp.id
-      const span = Math.PI - ANGLE_MARGIN * 2
-      const base = ANGLE_MARGIN + ((i + 0.5) / items.length) * span
+      const span = Math.PI * 2
+      const base = ((i + 0.5) / items.length) * span
       const jitterAngle = (hash01(id, 1) - 0.5) * (span / items.length) * 0.6
       const arc = arcBase + (hash01(id, 2) - 0.5) * 0.045
 
@@ -319,11 +321,11 @@ export function buildStarShell(count: number): Float32Array {
 }
 
 export type DustLayout = {
-  /** Arc each mote rides, 0..1. */
+  /** Ring each mote rides, 0..1. */
   arc: Float32Array
-  /** Angle along that arc, 0..PI. */
+  /** Angle on that ring, 0..2π. */
   angle: Float32Array
-  /** Sway offset. */
+  /** Phase offset for residual sway. */
   phase: Float32Array
   /** Depth jitter. */
   z: Float32Array
@@ -344,11 +346,11 @@ export function buildDust(count: number): DustLayout {
 
   for (let i = 0; i < count; i++) {
     const seed = `dust-${i}`
-    // sqrt spreads the motes evenly over the field's area rather than piling
-    // them up near the top edge, where the arcs are short.
+    // sqrt spreads the motes evenly over the disc's area rather than piling
+    // them up near the hub.
     const a = Math.sqrt(hash01(seed, 5))
     arc[i] = a
-    angle[i] = hash01(seed, 6) * Math.PI
+    angle[i] = hash01(seed, 6) * Math.PI * 2
     phase[i] = hash01(seed, 7) * Math.PI * 2
     z[i] = (hash01(seed, 8) - 0.5) * 1.2
     delay[i] = a * 0.3

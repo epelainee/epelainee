@@ -10,6 +10,8 @@ import { HubHotspot } from './ui/HubHotspot'
 import { EmptyRipple } from './ui/EmptyRipple'
 import { spawnEmptyRipple } from './ui/emptyRippleBus'
 import { NamePlate } from './ui/NamePlate'
+import { SocialLinks } from './ui/SocialLinks'
+import { LocalClock } from './ui/LocalClock'
 import { dustCountFor, shellCountFor, useViewport } from './ui/useViewport'
 import { useBackKey } from './ui/useBackKey'
 import { CRUSH_DURATION, useStore } from './state/store'
@@ -49,6 +51,8 @@ export default function App() {
       <NavRing />
       <DetailPanel />
       <NamePlate />
+      <SocialLinks />
+      <LocalClock />
 
       {/* Intro cue. Dematerialises with the burst; only the star hotspot bursts. */}
       <p
@@ -74,7 +78,7 @@ export default function App() {
           ].join(', '),
         }}
       >
-        {coarse ? 'Tap' : 'Click'} the star to begin
+        {coarse ? 'Tap' : 'Click'} the star to explore!
       </p>
 
       {/* Keyboard hint; pointless on touch-only devices, so `coarse` hides it. */}

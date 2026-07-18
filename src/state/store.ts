@@ -30,7 +30,6 @@ type State = {
 
   enterCategory: (id: CategoryId) => void
   enterSub: (id: string) => void
-  showAll: () => void
   back: () => void
 }
 
@@ -74,8 +73,6 @@ export const useStore = create<State>((set, get) => ({
       const next = s.path[1] === id ? [cat] : [cat, id]
       return { path: next, ...afterChoice }
     }),
-
-  showAll: () => set({ path: [], ...afterChoice }),
 
   /**
    * The keyboard "back": one press undoes the last spatial step, layered —

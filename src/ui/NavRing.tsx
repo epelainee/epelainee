@@ -1,12 +1,13 @@
 import { CATEGORIES, categoryById } from '../data/categories'
 import type { CategoryId } from '../data/categories'
+import { EXPERIENCES } from '../data/experiences'
 import { useStore } from '../state/store'
 
 /**
  * The ring of category / subcategory choices around the central hub.
  *
  * Shows exactly one level: the seven categories at root, then the entered
- * category's subcategories, plus a "Show all" that returns to root.
+ * category's subcategories. Esc / Backspace steps back via `back()`.
  *
  * The central star opens and closes it (`ringOpen`). Selections deliberately do
  * not close it, so drilling category -> subcategory is one continuous motion
@@ -19,7 +20,14 @@ import { useStore } from '../state/store'
  */
 const RING = 'clamp(7.5rem, 26vmin, 12rem)'
 
-type Item = { id: string; label: string; active: boolean; reset?: boolean }
+const categoryCounts = new Map<CategoryId, number>()
+const subCounts = new Map<string, number>()
+for (const e of EXPERIENCES) {
+  categoryCounts.set(e.category, (categoryCounts.get(e.category) ?? 0) + 1)
+  subCounts.set(e.subcategory, (subCounts.get(e.subcategory) ?? 0) + 1)
+}
+
+type Item = { id: string; label: string; count: number; active: boolean }
 
 export function NavRing() {
   const phase = useStore((s) => s.phase)
@@ -27,7 +35,6 @@ export function NavRing() {
   const path = useStore((s) => s.path)
   const enterCategory = useStore((s) => s.enterCategory)
   const enterSub = useStore((s) => s.enterSub)
-  const showAll = useStore((s) => s.showAll)
 
   if (phase !== 'galaxy' || !ringOpen) return null
 
@@ -35,18 +42,22 @@ export function NavRing() {
   let items: Item[]
   let onPick: (item: Item) => void
   if (path.length === 0) {
-    items = CATEGORIES.map((c) => ({ id: c.id, label: c.label, active: false }))
+    items = CATEGORIES.map((c) => ({
+      id: c.id,
+      label: c.label,
+      count: categoryCounts.get(c.id) ?? 0,
+      active: false,
+    }))
     onPick = (item) => enterCategory(item.id as CategoryId)
   } else {
     const cat = categoryById(path[0] as CategoryId)
     items = (cat?.subs ?? []).map((s) => ({
       id: s.id,
       label: s.label,
+      count: subCounts.get(s.id) ?? 0,
       active: path[1] === s.id,
     }))
-    // Below root, offer the way back out to everything.
-    items.push({ id: '__all__', label: 'Show all', active: false, reset: true })
-    onPick = (item) => (item.reset ? showAll() : enterSub(item.id))
+    onPick = (item) => enterSub(item.id)
   }
 
   return (
@@ -75,7 +86,7 @@ export function NavRing() {
               transform: `translate(-50%, -50%) translate(calc(cos(${angle}rad) * ${RING}), calc(sin(${angle}rad) * ${RING}))`,
               pointerEvents: 'auto',
               background: item.active ? 'var(--fg)' : 'rgba(0,0,0,0.55)',
-              color: item.active ? '#000' : item.reset ? 'var(--dim)' : 'var(--fg)',
+              color: item.active ? '#000' : 'var(--fg)',
               border: `1px solid ${
                 item.active ? 'var(--fg)' : 'rgba(255,255,255,0.35)'
               }`,
@@ -90,7 +101,7 @@ export function NavRing() {
               textShadow: item.active ? 'none' : '0 0 8px #000',
             }}
           >
-            {item.label}
+            {item.label} ({item.count})
           </button>
         )
       })}
