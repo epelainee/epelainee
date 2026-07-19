@@ -47,12 +47,10 @@ const dummy = new Object3D()
  * fall between samples and flicker as it drifts. NODE_RADIUS is set against
  * that floor, not for looks alone.
  */
-const NODE_RADIUS = 0.065
-/**
- * Flat internship / certification stars.
- * Kept under sphere radius so they read as the little marks, not mini hubs.
- */
-const STAR_OUTER = NODE_RADIUS * 0.95
+/** Desktop sphere size. Mobile shrinks via `TOUCH_NODE_SCALE`. */
+const NODE_RADIUS = 0.115
+/** Flat stars — a bit larger than spheres so tips survive the halftone. */
+const STAR_OUTER = NODE_RADIUS * 1.35
 const DUST_COUNT = 6000
 
 /**
@@ -122,11 +120,11 @@ function staggered(raw: number, delay: number) {
 }
 
 /**
- * Nodes are drawn larger on touch screens. A ~4px dot is an unhittable target
- * for a finger, and the node geometry is also the raycast target — so growing
- * it is what makes tapping viable, not just easier to see.
+ * Mobile-only size. Desktop keeps full `NODE_RADIUS` / `STAR_OUTER`.
+ * Stars get a bump so 4/5-point tips stay readable vs spheres.
  */
-const TOUCH_NODE_SCALE = 1.7
+const TOUCH_NODE_SCALE = 0.8
+const TOUCH_STAR_SCALE = 1.05
 
 const FIELD_BOUNDS = new Sphere(new Vector3(0, 0, 0), 60)
 
@@ -301,7 +299,11 @@ export function Galaxy({
       shown[i] += (want - shown[i]) * Math.min(1, delta * 8)
     }
 
-    const writeGroup = (mesh: InstancedMesh | null, indices: number[]) => {
+    const writeGroup = (
+      mesh: InstancedMesh | null,
+      indices: number[],
+      touchScale: number,
+    ) => {
       if (!mesh || indices.length === 0) return
       for (let j = 0; j < indices.length; j++) {
         const i = indices[j]
@@ -311,7 +313,7 @@ export function Galaxy({
         dummy.scale.setScalar(
           n.scale *
             (n.id === hoveredId ? HOVER_SCALE : 1) *
-            (touch ? TOUCH_NODE_SCALE : 1) *
+            (touch ? touchScale : 1) *
             (COLLAPSED_NODE_SCALE + (1 - COLLAPSED_NODE_SCALE) * e) *
             shown[i],
         )
@@ -321,9 +323,9 @@ export function Galaxy({
       mesh.instanceMatrix.needsUpdate = true
     }
 
-    writeGroup(sphereRef.current, groups.sphere)
-    writeGroup(internRef.current, groups.intern)
-    writeGroup(certRef.current, groups.cert)
+    writeGroup(sphereRef.current, groups.sphere, TOUCH_NODE_SCALE)
+    writeGroup(internRef.current, groups.intern, TOUCH_STAR_SCALE)
+    writeGroup(certRef.current, groups.cert, TOUCH_STAR_SCALE)
 
     // Park the label on the hovered node.
     const label = labelRef.current

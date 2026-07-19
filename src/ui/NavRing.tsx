@@ -1,8 +1,15 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { categoryById } from '../data/categories'
 import type { CategoryId } from '../data/categories'
 import { useContent } from '../content/useContent'
 import { useStore } from '../state/store'
+import { useViewport } from './useViewport'
 
 /**
  * The ring of category / subcategory choices around the central hub.
@@ -14,12 +21,17 @@ import { useStore } from '../state/store'
  * not close it, so drilling category -> subcategory is one continuous motion
  * rather than a trip back to the centre for every step.
  *
+ * Compact (mobile): vertical column through the hub with a clear gap for the
+ * star — not a ring — so labels stay readable and never cover the core.
+ *
  * DOM rather than 3D: it never passes through the halftone, so the labels stay
  * crisp, and it keeps the one interactive 3D object — the central star — clean.
  * The container ignores the pointer; only the buttons catch it, so hovering the
  * galaxy between buttons still works.
  */
 const RING = 'clamp(7.5rem, 26vmin, 12rem)'
+/** Clear band for the galaxy core hotspot (~4.5rem) plus a little air. */
+const STAR_CLEAR = '5.75rem'
 const PANEL_MS = 520
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const STAGGER_MS = 28
@@ -35,6 +47,7 @@ function prefersReducedMotion(): boolean {
 
 export function NavRing() {
   const { categories, experiences } = useContent()
+  const { compact } = useViewport()
   const phase = useStore((s) => s.phase)
   const ringOpen = useStore((s) => s.ringOpen)
   const path = useStore((s) => s.path)
@@ -110,6 +123,101 @@ export function NavRing() {
 
   const reduced = prefersReducedMotion()
 
+  const buttonStyle = (item: Item): CSSProperties => ({
+    background: item.active ? 'var(--fg)' : 'rgba(0,0,0,0.55)',
+    color: item.active ? '#000' : 'var(--fg)',
+    border: `1px solid ${
+      item.active ? 'var(--fg)' : 'rgba(255,255,255,0.35)'
+    }`,
+    borderRadius: '999px',
+    padding: '0.4rem 0.85rem',
+    font: '400 0.6875rem/1 var(--mono)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    backdropFilter: 'blur(3px)',
+    textShadow: item.active ? 'none' : '0 0 8px #000',
+    transition: reduced
+      ? undefined
+      : [
+          `background 220ms ${EASE}`,
+          `color 220ms ${EASE}`,
+          `border-color 220ms ${EASE}`,
+          `transform 180ms ${EASE}`,
+        ].join(', '),
+  })
+
+  const renderBtn = (item: Item) => (
+    <button
+      type="button"
+      onClick={() => onPick(item)}
+      aria-pressed={item.active}
+      className="nav-ring-btn"
+      style={buttonStyle(item)}
+    >
+      {item.label} ({item.count})
+    </button>
+  )
+
+  // Mobile: top→bottom column with a mid spacer so the core star stays free.
+  if (compact) {
+    const split = Math.ceil(items.length / 2)
+    const above = items.slice(0, split)
+    const below = items.slice(split)
+
+    const stackItem = (item: Item, i: number) => {
+      const delay = reduced ? 0 : i * STAGGER_MS
+      return (
+        <div
+          key={`${levelKey}-${item.id}`}
+          style={{
+            opacity: visible ? 1 : 0,
+            transform: visible ? 'scale(1)' : 'scale(0.88)',
+            pointerEvents: visible ? 'auto' : 'none',
+            transition: reduced
+              ? undefined
+              : [
+                  `opacity ${PANEL_MS}ms ${EASE} ${delay}ms`,
+                  `transform ${PANEL_MS}ms ${EASE} ${delay}ms`,
+                ].join(', '),
+          }}
+        >
+          {renderBtn(item)}
+        </div>
+      )
+    }
+
+    return (
+      <div
+        id="nav-ring"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 25,
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.45rem',
+          padding: '0.75rem',
+        }}
+      >
+        {above.map((item, i) => stackItem(item, i))}
+        <div
+          aria-hidden
+          style={{
+            height: STAR_CLEAR,
+            width: 1,
+            flexShrink: 0,
+          }}
+        />
+        {below.map((item, i) => stackItem(item, split + i))}
+      </div>
+    )
+  }
+
   return (
     <div
       id="nav-ring"
@@ -144,38 +252,7 @@ export function NavRing() {
                   ].join(', '),
             }}
           >
-            <button
-              type="button"
-              onClick={() => onPick(item)}
-              aria-pressed={item.active}
-              className="nav-ring-btn"
-              style={{
-                background: item.active ? 'var(--fg)' : 'rgba(0,0,0,0.55)',
-                color: item.active ? '#000' : 'var(--fg)',
-                border: `1px solid ${
-                  item.active ? 'var(--fg)' : 'rgba(255,255,255,0.35)'
-                }`,
-                borderRadius: '999px',
-                padding: '0.4rem 0.85rem',
-                font: '400 0.6875rem/1 var(--mono)',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                backdropFilter: 'blur(3px)',
-                textShadow: item.active ? 'none' : '0 0 8px #000',
-                transition: reduced
-                  ? undefined
-                  : [
-                      `background 220ms ${EASE}`,
-                      `color 220ms ${EASE}`,
-                      `border-color 220ms ${EASE}`,
-                      `transform 180ms ${EASE}`,
-                    ].join(', '),
-              }}
-            >
-              {item.label} ({item.count})
-            </button>
+            {renderBtn(item)}
           </div>
         )
       })}
