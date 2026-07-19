@@ -9,7 +9,7 @@ const chrome: CSSProperties = {
   font: '400 0.625rem/1 var(--mono)',
   letterSpacing: '0.14em',
   textTransform: 'uppercase',
-  color: 'var(--dim)',
+  color: 'rgba(255, 255, 255, 0.88)',
   textShadow: '0 0 8px #000',
   pointerEvents: 'none',
   whiteSpace: 'nowrap',
@@ -53,8 +53,11 @@ export function LocalClock() {
         aria-live="polite"
         style={{
           ...chrome,
-          left: 'max(1.5rem, env(safe-area-inset-left))',
-          top: 'max(1.5rem, env(safe-area-inset-top))',
+          left: 'max(1.25rem, env(safe-area-inset-left))',
+          top: 'max(1.25rem, env(safe-area-inset-top))',
+          right: 'max(7rem, env(safe-area-inset-right))',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
         }}
       >
         {formatTime(now)}
@@ -62,8 +65,12 @@ export function LocalClock() {
       <p
         style={{
           ...chrome,
-          right: 'max(1.5rem, env(safe-area-inset-right))',
-          top: 'max(1.5rem, env(safe-area-inset-top))',
+          right: 'max(1.25rem, env(safe-area-inset-right))',
+          top: 'max(1.25rem, env(safe-area-inset-top))',
+          left: 'max(7rem, env(safe-area-inset-left))',
+          textAlign: 'right',
+          whiteSpace: 'normal',
+          lineHeight: 1.35,
         }}
       >
         {formatDate(now)}

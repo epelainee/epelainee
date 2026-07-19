@@ -1,5 +1,6 @@
 import { coreClick } from '../scene/coreClick'
 import { useStore } from '../state/store'
+import { useContent } from '../content/useContent'
 
 /**
  * The central star's click target.
@@ -9,19 +10,24 @@ import { useStore } from '../state/store'
  * occlude it — `Core` projects world origin into `#hub-hotspot` each frame.
  *
  * Intro uses a larger hit area to match the collapsed star; galaxy stays tight
- * on the small core.
+ * on the small core. Galaxy hover shows a filter tooltip.
  */
 export function HubHotspot() {
+  const { siteSettings } = useContent()
   const phase = useStore((s) => s.phase)
   const ringOpen = useStore((s) => s.ringOpen)
   const toggleRing = useStore((s) => s.toggleRing)
   const crush = useStore((s) => s.crush)
+  const tips = siteSettings.hubTips
 
   const intro = phase === 'intro'
-  const active = intro || phase === 'galaxy'
+  const galaxy = phase === 'galaxy'
+  const active = intro || galaxy
   // Intro star fills more of the screen than the settled core.
   const rem = intro ? 9 : 4.5
   const half = intro ? -4.5 : -2.25
+
+  const tip = ringOpen ? tips.hideFilters : tips.filterByCategory
 
   return (
     <button
@@ -40,10 +46,10 @@ export function HubHotspot() {
       aria-expanded={intro ? undefined : ringOpen}
       aria-label={
         intro
-          ? 'Burst the star to reveal the galaxy'
+          ? tips.introAria
           : ringOpen
-            ? 'Hide categories'
-            : 'Show categories'
+            ? tips.hideFilters
+            : tips.filterByCategory
       }
       style={{
         position: 'fixed',
@@ -62,6 +68,12 @@ export function HubHotspot() {
         cursor: 'pointer',
         zIndex: 26,
       }}
-    />
+    >
+      {galaxy ? (
+        <span className="hub-tooltip" aria-hidden="true">
+          {tip}
+        </span>
+      ) : null}
+    </button>
   )
 }

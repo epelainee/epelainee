@@ -1,16 +1,17 @@
 import type { CSSProperties } from 'react'
 import { CRUSH_DURATION, useStore } from '../state/store'
+import { useContent } from '../content/useContent'
 
-const EASE = 'cubic-bezier(0.65, 0, 0.35, 1)'
-/** Panel open/close dissolve — snappier than the burst. */
-const PANEL_MS = 400
+const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+/** Panel open/close dissolve — soft settle, not a hard cut. */
+const PANEL_MS = 520
 const DISSOLVE_BLUR = '12px'
 
 const chrome: CSSProperties = {
   position: 'fixed',
   zIndex: 20,
   margin: 0,
-  color: 'var(--dim)',
+  color: 'rgba(255, 255, 255, 0.92)',
   textShadow: '0 0 10px #000',
   pointerEvents: 'none',
 }
@@ -22,16 +23,23 @@ const nameStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
+/** Keep multi-word names from wrapping mid-word awkwardly. */
+function nbspName(name: string) {
+  return name.replace(/ /g, '\u00a0')
+}
+
 /**
  * Identity chrome. Intro: top-left name + place, bottom-left tagline.
- * Galaxy: bottom-centre name + email. Dissolves with the burst / panel.
+ * Galaxy: bottom-centre name. Dissolves with the burst / panel.
  */
 export function NamePlate() {
+  const { siteSettings } = useContent()
   const phase = useStore((s) => s.phase)
   const panelOpen = useStore((s) => s.selectedId !== null)
   const intro = phase === 'intro'
   const settled = phase === 'galaxy' || phase === 'crushing'
   const settledVisible = settled && !panelOpen
+  const displayName = nbspName(siteSettings.displayName)
 
   const introDissolve = {
     opacity: intro ? 1 : 0,
@@ -48,27 +56,37 @@ export function NamePlate() {
         aria-hidden={phase !== 'intro'}
         style={{
           ...chrome,
-          left: 'max(1.5rem, env(safe-area-inset-left))',
-          top: 'max(1.5rem, env(safe-area-inset-top))',
+          left: 'max(1.25rem, env(safe-area-inset-left))',
+          top: 'max(1.25rem, env(safe-area-inset-top))',
+          right: 'max(5.5rem, env(safe-area-inset-right))',
           display: 'flex',
           flexDirection: 'column',
           gap: '0.55rem',
           ...introDissolve,
         }}
       >
-        <p style={{ ...nameStyle, margin: 0 }}>Elizabeth&nbsp;Patricia&nbsp;Elaine</p>
+        <p
+          style={{
+            ...nameStyle,
+            margin: 0,
+            whiteSpace: 'normal',
+            maxWidth: '100%',
+          }}
+        >
+          {displayName}
+        </p>
         <p
           style={{
             margin: 0,
             font: '400 0.625rem/1.35 var(--mono)',
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
-            color: 'rgba(138, 138, 138, 0.75)',
+            color: 'rgba(255, 255, 255, 0.78)',
             maxWidth: '16rem',
             whiteSpace: 'normal',
           }}
         >
-          Currently in Vancouver, Canada
+          {siteSettings.locationLine}
         </p>
       </div>
 
@@ -76,17 +94,18 @@ export function NamePlate() {
         aria-hidden={phase !== 'intro'}
         style={{
           ...chrome,
-          left: 'max(1.5rem, env(safe-area-inset-left))',
-          bottom: 'max(1.5rem, env(safe-area-inset-bottom))',
+          left: 'max(1.25rem, env(safe-area-inset-left))',
+          bottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+          right: 'max(1.25rem, env(safe-area-inset-right))',
           font: '400 0.6875rem/1.45 var(--mono)',
           letterSpacing: '0.06em',
-          maxWidth: 'min(18rem, 42vw)',
+          // Wide enough for two lines; leave room for the intro cue on the right.
+          maxWidth: 'min(22rem, calc(100vw - 12rem))',
           whiteSpace: 'normal',
           ...introDissolve,
         }}
       >
-        An interactive map of the work, interests, and experiences that shaped
-        me.
+        {siteSettings.tagline}
       </p>
 
       <div
@@ -94,38 +113,38 @@ export function NamePlate() {
         style={{
           ...chrome,
           left: '50%',
-          bottom: 'max(1.5rem, env(safe-area-inset-bottom))',
-          transform: 'translateX(-50%)',
+          // Low under the field — clears the galaxy shell, sits with bottom chrome.
+          bottom:
+            'max(1.75rem, calc(env(safe-area-inset-bottom) + 1.25rem))',
+          transform: settledVisible
+            ? 'translateX(-50%) translateY(0)'
+            : 'translateX(-50%) translateY(8px)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '0.45rem',
           textAlign: 'center',
+          maxWidth: 'min(72vw, 20rem)',
+          padding: '0 0.5rem',
           opacity: settledVisible ? 1 : 0,
           filter: settledVisible ? 'blur(0)' : `blur(${DISSOLVE_BLUR})`,
           transition: [
             `opacity ${PANEL_MS}ms ${EASE}`,
             `filter ${PANEL_MS}ms ${EASE}`,
+            `transform ${PANEL_MS}ms ${EASE}`,
           ].join(', '),
         }}
       >
-        <p style={{ ...nameStyle, margin: 0 }}>
-          Elizabeth&nbsp;Patricia&nbsp;Elaine
-        </p>
-        <a
-          href="mailto:epelainee@gmail.com"
+        <p
           style={{
-            font: '400 0.625rem/1 var(--mono)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            color: 'rgba(138, 138, 138, 0.85)',
-            textDecoration: 'none',
-            pointerEvents: settledVisible ? 'auto' : 'none',
-            textShadow: '0 0 10px #000',
+            ...nameStyle,
+            margin: 0,
+            font: '400 1rem/1.15 var(--mono)',
+            letterSpacing: '0.18em',
+            whiteSpace: 'normal',
           }}
         >
-          reach me at epelainee@gmail.com
-        </a>
+          {displayName}
+        </p>
       </div>
     </>
   )

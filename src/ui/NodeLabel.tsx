@@ -1,7 +1,7 @@
 import { Html } from '@react-three/drei'
 import { useStore } from '../state/store'
 import { byId } from '../data/experiences'
-import { categoryLabel } from '../data/categories'
+import { useContent } from '../content/useContent'
 
 /**
  * The hover/tap label.
@@ -14,14 +14,17 @@ import { categoryLabel } from '../data/categories'
  * Only one label exists at a time — the hovered one — so 60+ nodes cost nothing.
  */
 export function NodeLabel() {
+  const { experiences } = useContent()
+  const phase = useStore((s) => s.phase)
   const hoveredId = useStore((s) => s.hoveredId)
   const selectedId = useStore((s) => s.selectedId)
 
-  // The panel already names the selected experience; a label on top of it is
-  // just clutter.
-  if (!hoveredId || hoveredId === selectedId) return null
+  // Labels only belong to the settled field. After Esc collapse, hoveredId can
+  // still be set for a frame (or longer if pointerOut never fires) — hide then.
+  // The panel already names the selected experience; a label on top is clutter.
+  if (phase !== 'galaxy' || !hoveredId || hoveredId === selectedId) return null
 
-  const exp = byId(hoveredId)
+  const exp = byId(experiences, hoveredId)
   if (!exp) return null
 
   return (
@@ -46,17 +49,6 @@ export function NodeLabel() {
             {exp.org}
           </div>
         )}
-        <div
-          style={{
-            fontSize: 9,
-            color: 'var(--dim)',
-            marginTop: 4,
-            textTransform: 'uppercase',
-            letterSpacing: '0.14em',
-          }}
-        >
-          {categoryLabel(exp.category)}
-        </div>
       </div>
     </Html>
   )

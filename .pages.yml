@@ -1,0 +1,211 @@
+# Pages CMS — https://pagescms.org
+# Edit categories, subcategories, experiences, and site chrome via GitHub.
+
+content:
+  - name: categories
+    label: Categories
+    type: collection
+    path: content/categories
+    filename: "{id}.json"
+    format: json
+    view:
+      fields: [label, order, id]
+      primary: label
+      sort: [order, label]
+      default:
+        sort: order
+        order: asc
+    fields:
+      - name: id
+        label: ID
+        type: string
+        required: true
+        pattern: "^[a-z0-9-]+$"
+        description: Stable slug used by the site (e.g. business).
+      - name: label
+        label: Label
+        type: string
+        required: true
+      - name: order
+        label: Order
+        type: number
+        required: true
+        description: Lower = inner galaxy ring / earlier in the nav ring.
+
+  - name: subcategories
+    label: Subcategories
+    type: collection
+    path: content/subcategories
+    filename: "{id}.json"
+    format: json
+    view:
+      fields: [label, category, order, id]
+      primary: label
+      sort: [order, label]
+      default:
+        sort: order
+        order: asc
+    fields:
+      - name: id
+        label: ID
+        type: string
+        required: true
+        pattern: "^[a-z0-9-]+$"
+        description: Globally unique (e.g. biz-finance).
+      - name: label
+        label: Label
+        type: string
+        required: true
+      - name: order
+        label: Order
+        type: number
+        required: true
+      - name: category
+        label: Category
+        type: reference
+        required: true
+        options:
+          collection: categories
+          value: "{id}"
+          label: "{label}"
+
+  - name: experiences
+    label: Experiences
+    type: collection
+    path: content/experiences
+    filename: "{id}.json"
+    format: json
+    view:
+      fields: [title, org, subcategory, order]
+      primary: title
+      sort: [order, title]
+      default:
+        sort: order
+        order: asc
+    fields:
+      - name: id
+        label: ID
+        type: string
+        required: true
+        pattern: "^[a-z0-9-]+$"
+      - name: title
+        label: Title
+        type: string
+        required: true
+      - name: org
+        label: Organization
+        type: string
+      - name: subcategory
+        label: Subcategory
+        type: reference
+        required: true
+        options:
+          collection: subcategories
+          value: "{id}"
+          label: "{label}"
+      - name: dates
+        label: Dates
+        type: string
+        description: e.g. "2023" or "2021–2023". Empty → panel placeholder.
+      - name: location
+        label: Location
+        type: string
+      - name: blurb
+        label: Description
+        type: text
+      - name: kind
+        label: Kind
+        type: select
+        options:
+          values:
+            - name: internship
+              label: Internship (4-point star)
+            - name: certification
+              label: Certification (5-point star)
+      - name: order
+        label: Order
+        type: number
+        required: true
+      - name: links
+        label: Links
+        type: object
+        list: true
+        fields:
+          - name: label
+            type: string
+            required: true
+          - name: url
+            type: string
+            required: true
+
+  - name: site-settings
+    label: Site Settings
+    type: file
+    path: content/site-settings.json
+    format: json
+    fields:
+      - name: displayName
+        label: Display name
+        type: string
+        required: true
+      - name: locationLine
+        label: Location line
+        type: string
+      - name: tagline
+        label: Tagline
+        type: text
+      - name: pageTitle
+        label: Page title
+        type: string
+      - name: pageDescription
+        label: Page description
+        type: text
+      - name: socialLinks
+        label: Social links
+        type: object
+        list: true
+        fields:
+          - name: label
+            type: string
+            required: true
+          - name: url
+            type: string
+            required: true
+          - name: icon
+            type: select
+            required: true
+            options:
+              values:
+                - name: linkedin
+                  label: LinkedIn
+                - name: instagram
+                  label: Instagram
+                - name: email
+                  label: Email
+                - name: other
+                  label: Other
+      - name: placeholders
+        label: Detail placeholders
+        type: object
+        fields:
+          - name: org
+            type: string
+          - name: dates
+            type: string
+          - name: location
+            type: string
+          - name: blurb
+            type: text
+      - name: hubTips
+        label: Hub tips
+        type: object
+        fields:
+          - name: introAria
+            label: Intro aria label
+            type: string
+          - name: filterByCategory
+            label: Filter by category
+            type: string
+          - name: hideFilters
+            label: Hide filters
+            type: string

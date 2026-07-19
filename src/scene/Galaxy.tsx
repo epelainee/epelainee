@@ -11,6 +11,7 @@ import {
   Sphere,
   Vector3,
 } from 'three'
+import { useContent } from '../content/useContent'
 import {
   buildDust,
   buildLayout,
@@ -21,6 +22,7 @@ import {
   fieldFrame,
   fieldPoint,
 } from './galaxyLayout'
+import { regularStarShape } from './starShape'
 import { CRUSH_DURATION, useStore } from '../state/store'
 import { crush } from './crush'
 import { NodeLabel } from '../ui/NodeLabel'
@@ -28,7 +30,8 @@ import { NodeLabel } from '../ui/NodeLabel'
 const dummy = new Object3D()
 
 /**
- * The field the star bursts into: one instanced sphere per experience, plus dust.
+ * The field the star bursts into: instanced nodes per experience (sphere,
+ * 4-point internship star, or 5-point certification star), plus dust.
  *
  * The star and the field are the same points. At crush 0 every point sits inside
  * the star; at 1 it sits on a ring orbiting the hub. So the burst is one number,
@@ -45,6 +48,8 @@ const dummy = new Object3D()
  * that floor, not for looks alone.
  */
 const NODE_RADIUS = 0.115
+/** Flat stars read smaller than spheres of the same radius under the halftone. */
+const STAR_OUTER = NODE_RADIUS * 1.35
 const DUST_COUNT = 6000
 
 /**
@@ -120,6 +125,8 @@ function staggered(raw: number, delay: number) {
  */
 const TOUCH_NODE_SCALE = 1.7
 
+const FIELD_BOUNDS = new Sphere(new Vector3(0, 0, 0), 60)
+
 export function Galaxy({
   dustCount = DUST_COUNT,
   shellCount = 14000,
@@ -129,13 +136,39 @@ export function Galaxy({
   shellCount?: number
   touch?: boolean
 }) {
-  const meshRef = useRef<InstancedMesh>(null)
+  const sphereRef = useRef<InstancedMesh>(null)
+  const internRef = useRef<InstancedMesh>(null)
+  const certRef = useRef<InstancedMesh>(null)
   const dustRef = useRef<Points>(null)
   const labelRef = useRef<Group>(null)
 
-  const layout = useMemo(() => buildLayout(), [])
+  const { experiences, categories } = useContent()
+  const layout = useMemo(
+    () => buildLayout(experiences, categories),
+    [experiences, categories],
+  )
   const dust = useMemo(() => buildDust(dustCount), [dustCount])
   const shell = useMemo(() => buildStarShell(shellCount), [shellCount])
+
+  const star4 = useMemo(() => regularStarShape(4, STAR_OUTER), [])
+  const star5 = useMemo(() => regularStarShape(5, STAR_OUTER), [])
+
+  /** Global layout indices partitioned by experience kind. */
+  const groups = useMemo(() => {
+    const kindById = new Map(
+      experiences.map((e) => [e.id, e.kind ?? 'default'] as const),
+    )
+    const sphere: number[] = []
+    const intern: number[] = []
+    const cert: number[] = []
+    layout.forEach((n, i) => {
+      const k = kindById.get(n.id) ?? 'default'
+      if (k === 'internship') intern.push(i)
+      else if (k === 'certification') cert.push(i)
+      else sphere.push(i)
+    })
+    return { sphere, intern, cert }
+  }, [layout, experiences])
 
   const phase = useStore((s) => s.phase)
   const hoveredId = useStore((s) => s.hoveredId)
@@ -197,10 +230,10 @@ export function Galaxy({
    * at no per-frame cost.
    */
   useLayoutEffect(() => {
-    const mesh = meshRef.current
-    if (!mesh) return
-    mesh.boundingSphere = new Sphere(new Vector3(0, 0, 0), 60)
-  }, [])
+    for (const mesh of [sphereRef.current, internRef.current, certRef.current]) {
+      if (mesh) mesh.boundingSphere = FIELD_BOUNDS
+    }
+  }, [groups.sphere.length, groups.intern.length, groups.cert.length])
 
   useFrame((state, delta) => {
     const { clock } = state
@@ -234,39 +267,44 @@ export function Galaxy({
       HUB_CLEAR_PX,
     )
 
-    const mesh = meshRef.current
-    if (mesh) {
-      for (let i = 0; i < layout.length; i++) {
+    for (let i = 0; i < layout.length; i++) {
+      const n = layout[i]
+      const e = staggered(p, n.delay)
+
+      // Full orbit around the hub, plus a little sway so rings do not look locked.
+      const spin = ORBIT_SPEED / Math.sqrt(Math.max(0.25, n.arc))
+      const angle =
+        n.angle +
+        t * spin +
+        Math.sin(t * DRIFT_SPEED + n.phase) * DRIFT_AMPLITUDE
+      const [fx, fy] = fieldPoint(field, n.arc, angle)
+
+      // Breathe/rock the collapsed position, not the group: a parent
+      // transform would drag the settled field along with it.
+      const cx = (n.collapsed[0] * swayCos - n.collapsed[1] * swaySin) * breath
+      const cy = (n.collapsed[0] * swaySin + n.collapsed[1] * swayCos) * breath
+
+      const x = cx + (fx - cx) * e
+      const y = cy + (fy - cy) * e
+      const z = n.collapsed[2] + (n.z - n.collapsed[2]) * e
+
+      live[i * 3] = x
+      live[i * 3 + 1] = y
+      live[i * 3 + 2] = z
+
+      // Ease filter visibility rather than snapping, so a filter change reads
+      // as the galaxy thinning out instead of half of it vanishing.
+      const want = matches(n.category, n.subcategory) ? 1 : 0
+      shown[i] += (want - shown[i]) * Math.min(1, delta * 8)
+    }
+
+    const writeGroup = (mesh: InstancedMesh | null, indices: number[]) => {
+      if (!mesh || indices.length === 0) return
+      for (let j = 0; j < indices.length; j++) {
+        const i = indices[j]
         const n = layout[i]
         const e = staggered(p, n.delay)
-
-        // Full orbit around the hub, plus a little sway so rings do not look locked.
-        const spin = ORBIT_SPEED / Math.sqrt(Math.max(0.25, n.arc))
-        const angle =
-          n.angle +
-          t * spin +
-          Math.sin(t * DRIFT_SPEED + n.phase) * DRIFT_AMPLITUDE
-        const [fx, fy] = fieldPoint(field, n.arc, angle)
-
-        // Breathe/rock the collapsed position, not the group: a parent
-        // transform would drag the settled field along with it.
-        const cx = (n.collapsed[0] * swayCos - n.collapsed[1] * swaySin) * breath
-        const cy = (n.collapsed[0] * swaySin + n.collapsed[1] * swayCos) * breath
-
-        const x = cx + (fx - cx) * e
-        const y = cy + (fy - cy) * e
-        const z = n.collapsed[2] + (n.z - n.collapsed[2]) * e
-
-        live[i * 3] = x
-        live[i * 3 + 1] = y
-        live[i * 3 + 2] = z
-
-        // Ease filter visibility rather than snapping, so a filter change reads
-        // as the galaxy thinning out instead of half of it vanishing.
-        const want = matches(n.category, n.subcategory) ? 1 : 0
-        shown[i] += (want - shown[i]) * Math.min(1, delta * 8)
-
-        dummy.position.set(x, y, z)
+        dummy.position.set(live[i * 3], live[i * 3 + 1], live[i * 3 + 2])
         dummy.scale.setScalar(
           n.scale *
             (n.id === hoveredId ? HOVER_SCALE : 1) *
@@ -275,10 +313,14 @@ export function Galaxy({
             shown[i],
         )
         dummy.updateMatrix()
-        mesh.setMatrixAt(i, dummy.matrix)
+        mesh.setMatrixAt(j, dummy.matrix)
       }
       mesh.instanceMatrix.needsUpdate = true
     }
+
+    writeGroup(sphereRef.current, groups.sphere)
+    writeGroup(internRef.current, groups.intern)
+    writeGroup(certRef.current, groups.cert)
 
     // Park the label on the hovered node.
     const label = labelRef.current
@@ -350,61 +392,103 @@ export function Galaxy({
 
   // Off-galaxy: disable raycasting so empty-space clicks reach `onPointerMissed`
   // (ripples) instead of landing on the collapsed / expanding instance cloud.
+  // Also drop hover — pointerOut won't fire once raycast is stubbed out.
   useEffect(() => {
-    const mesh = meshRef.current
-    if (!mesh) return
-    if (interactive) {
-      mesh.raycast = InstancedMesh.prototype.raycast
-    } else {
-      mesh.raycast = () => {}
+    const meshes = [sphereRef.current, internRef.current, certRef.current]
+    for (const mesh of meshes) {
+      if (!mesh) continue
+      if (interactive) {
+        mesh.raycast = InstancedMesh.prototype.raycast
+      } else {
+        mesh.raycast = () => {}
+      }
     }
-  }, [interactive])
+    if (!interactive) {
+      setHovered(null)
+      document.body.style.cursor = ''
+    }
+  }, [interactive, setHovered])
 
   /**
    * A filtered-out node shrinks to nothing but its instance still exists, and a
    * zero-scale sphere can still register a raycast hit. Without this guard an
    * invisible node would answer to the pointer.
    */
-  const pickable = (i: number | undefined) =>
-    i !== undefined &&
-    layout[i] !== undefined &&
-    matches(layout[i].category, layout[i].subcategory)
+  const pickable = (globalIndex: number | undefined) =>
+    globalIndex !== undefined &&
+    layout[globalIndex] !== undefined &&
+    matches(layout[globalIndex].category, layout[globalIndex].subcategory)
 
-  const onMove = (e: ThreeEvent<PointerEvent>) => {
-    if (!interactive) return
-    e.stopPropagation()
-    if (!pickable(e.instanceId)) {
-      if (hoveredId !== null) setHovered(null)
-      return
-    }
-    const id = layout[e.instanceId!].id
-    if (id !== hoveredId) setHovered(id)
-    document.body.style.cursor = 'pointer'
-  }
+  const handlersFor = (indices: number[]) => ({
+    onPointerMove: (e: ThreeEvent<PointerEvent>) => {
+      if (!interactive) return
+      e.stopPropagation()
+      const global = indices[e.instanceId!]
+      if (!pickable(global)) {
+        if (hoveredId !== null) setHovered(null)
+        return
+      }
+      const id = layout[global].id
+      if (id !== hoveredId) setHovered(id)
+      document.body.style.cursor = 'pointer'
+    },
+    onPointerOut: () => {
+      if (!interactive) return
+      setHovered(null)
+      document.body.style.cursor = ''
+    },
+    onClick: (e: ThreeEvent<MouseEvent>) => {
+      if (!interactive) return
+      const global = indices[e.instanceId!]
+      if (!pickable(global)) return
+      e.stopPropagation()
+      select(layout[global].id)
+    },
+  })
+
+  const sphereHandlers = handlersFor(groups.sphere)
+  const internHandlers = handlersFor(groups.intern)
+  const certHandlers = handlersFor(groups.cert)
 
   // No parent transform: settled positions are already world coordinates, and
   // the star they interpolate from must not be distorted.
   return (
     <group>
-      <instancedMesh
-        ref={meshRef}
-        args={[undefined, undefined, layout.length]}
-        frustumCulled={false}
-        onPointerMove={onMove}
-        onPointerOut={() => {
-          if (!interactive) return
-          setHovered(null)
-          document.body.style.cursor = ''
-        }}
-        onClick={(e) => {
-          if (!interactive || !pickable(e.instanceId)) return
-          e.stopPropagation()
-          select(layout[e.instanceId!].id)
-        }}
-      >
-        <sphereGeometry args={[NODE_RADIUS, 12, 12]} />
-        <meshBasicMaterial color="#ffffff" />
-      </instancedMesh>
+      {groups.sphere.length > 0 ? (
+        <instancedMesh
+          ref={sphereRef}
+          args={[undefined, undefined, groups.sphere.length]}
+          frustumCulled={false}
+          {...sphereHandlers}
+        >
+          <sphereGeometry args={[NODE_RADIUS, 12, 12]} />
+          <meshBasicMaterial color="#ffffff" />
+        </instancedMesh>
+      ) : null}
+
+      {groups.intern.length > 0 ? (
+        <instancedMesh
+          ref={internRef}
+          args={[undefined, undefined, groups.intern.length]}
+          frustumCulled={false}
+          {...internHandlers}
+        >
+          <shapeGeometry args={[star4]} />
+          <meshBasicMaterial color="#ffffff" />
+        </instancedMesh>
+      ) : null}
+
+      {groups.cert.length > 0 ? (
+        <instancedMesh
+          ref={certRef}
+          args={[undefined, undefined, groups.cert.length]}
+          frustumCulled={false}
+          {...certHandlers}
+        >
+          <shapeGeometry args={[star5]} />
+          <meshBasicMaterial color="#ffffff" />
+        </instancedMesh>
+      ) : null}
 
       <group ref={labelRef}>
         <NodeLabel />

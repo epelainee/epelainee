@@ -1,0 +1,35 @@
+{
+  "displayName": "Elizabeth Patricia Elaine",
+  "locationLine": "Currently in Vancouver, Canada",
+  "tagline": "An interactive map of the work, interests, and experiences that shaped me.",
+  "pageTitle": "Elizabeth Patricia Elaine",
+  "pageDescription": "exploring the spaces in between",
+  "socialLinks": [
+    {
+      "label": "LinkedIn",
+      "url": "https://www.linkedin.com/in/epelainee",
+      "icon": "linkedin"
+    },
+    {
+      "label": "Instagram",
+      "url": "http://instagram.com/epelainee",
+      "icon": "instagram"
+    },
+    {
+      "label": "Email",
+      "url": "mailto:epelainee@gmail.com",
+      "icon": "email"
+    }
+  ],
+  "placeholders": {
+    "org": "Company",
+    "dates": "Month Year – Month Year",
+    "location": "City, Country",
+    "blurb": "Short description of the role, what you did, and what you learned."
+  },
+  "hubTips": {
+    "introAria": "Burst the star to reveal the galaxy",
+    "filterByCategory": "Filter by category",
+    "hideFilters": "Hide filters"
+  }
+}

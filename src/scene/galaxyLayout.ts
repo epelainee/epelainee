@@ -1,5 +1,9 @@
-import { categoryOrder, type CategoryId } from '../data/categories'
-import { EXPERIENCES } from '../data/experiences'
+import {
+  categoryOrder,
+  type CategoryId,
+  type MainCategory,
+} from '../data/categories'
+import type { Experience } from '../data/experiences'
 
 /**
  * Deterministic layout maths for the galaxy. Kept free of three.js and of React
@@ -254,13 +258,16 @@ export type NodeLayout = {
 }
 
 /**
- * One ring per category, ordered by its position in CATEGORIES: innermost near
- * the hub, outermost near the frame edge. Nodes spread around the full orbit,
- * with jitter so the rings don't read as rigid.
+ * One ring per category, ordered by its position in `categories`: innermost
+ * near the hub, outermost near the frame edge. Nodes spread around the full
+ * orbit, with jitter so the rings don't read as rigid.
  */
-export function buildLayout(): NodeLayout[] {
-  const byCategory = new Map<CategoryId, typeof EXPERIENCES>()
-  for (const e of EXPERIENCES) {
+export function buildLayout(
+  experiences: Experience[],
+  categories: MainCategory[],
+): NodeLayout[] {
+  const byCategory = new Map<CategoryId, Experience[]>()
+  for (const e of experiences) {
     const list = byCategory.get(e.category) ?? []
     list.push(e)
     byCategory.set(e.category, list)
@@ -270,7 +277,7 @@ export function buildLayout(): NodeLayout[] {
   const out: NodeLayout[] = []
 
   for (const [category, items] of byCategory) {
-    const t = categoryOrder(category) / bands
+    const t = categoryOrder(categories, category) / bands
     const arcBase = ARC_INNER + t * (ARC_OUTER - ARC_INNER)
 
     items.forEach((exp, i) => {

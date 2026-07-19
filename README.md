@@ -18,7 +18,33 @@ npm run dev      # http://localhost:5173
 npm run build
 ```
 
-Everything is generated in code. There are no image assets.
+## Editing content (Pages CMS)
+
+Categories, subcategories, experiences, and site chrome live as JSON under
+`content/` and are edited with [Pages CMS](https://pagescms.org) (git-based).
+The site imports that JSON at **build time** — save in Pages CMS → commit to
+GitHub → redeploy to see changes on the live site.
+
+```bash
+# 1. Push this repo to GitHub
+# 2. Open https://pagescms.org and connect the repo
+# 3. Edit via the UI (schema is `.pages.yml`)
+# 4. Redeploy / rebuild after commits land
+npm run dev      # uses content/ from disk
+npm run build
+```
+
+| Path | What |
+| --- | --- |
+| `content/categories/*.json` | Top-level categories |
+| `content/subcategories/*.json` | Subs (reference a category id) |
+| `content/experiences/*.json` | Experience nodes |
+| `content/site-settings.json` | Name, tagline, socials, meta, placeholders |
+| `.pages.yml` | Pages CMS field schema |
+
+Types/helpers stay in `src/data/`; the arrays themselves are no longer in TypeScript.
+
+Everything visual is generated in code. There are no image assets.
 (`public/hand-source.jpeg` is left over from an earlier concept and is unused —
 delete it whenever.)
 
@@ -93,23 +119,12 @@ and field all interpolate off that one number, so the burst plays backwards.
 A press during the reform is a deliberate no-op, and a click mid-reform simply
 re-bursts from wherever the animation has got to.
 
-## The category data still needs you
+## Filling in experience copy
 
-`src/data/categories.ts` defines the 7 categories and their subcategories.
-`src/data/experiences.ts` maps all 64 entries to a `category` + `subcategory`,
-with `dates` and `blurb` left empty for you to fill (the detail panel omits
-either while blank).
-
-Two things to review:
-
-- **`dates` / `blurb`** — empty on every entry.
-- **The mapping** — a first pass, and several are judgement calls. The 7
-  categories have no natural home for the service/manual roles (barista, gelato,
-  cook, forklift, ushering, culinary), so they're parked under
-  **Business → Service & Hospitality**; floristry and nail art sit in
-  **Creative → Visual**; club-leadership roles go to **Leadership** rather than
-  their subject. `category` + `subcategory` are the only fields deciding where a
-  node lives, so reassign freely. Counts per category came out 5–17.
+Many experience `dates` / `location` / `blurb` fields are still empty — edit them
+in Pages CMS (or the JSON under `content/experiences/`). The detail panel shows
+placeholders until filled. Category assignments are a first pass; reassign via
+the subcategory field anytime.
 
 ## How it fits together
 

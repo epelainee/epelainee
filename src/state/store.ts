@@ -58,7 +58,12 @@ export const useStore = create<State>((set, get) => ({
   },
 
   setHovered: (id) => set({ hoveredId: id }),
-  select: (id) => set({ selectedId: id }),
+  // Ignore pick races after Esc has already collapsed the field — a late click
+  // must not reopen a panel over the intro star.
+  select: (id) => {
+    if (id !== null && get().phase !== 'galaxy') return
+    set({ selectedId: id })
+  },
   toggleRing: () => set((s) => ({ ringOpen: !s.ringOpen })),
 
   enterCategory: (id) => set({ path: [id], ...afterChoice }),
@@ -83,11 +88,20 @@ export const useStore = create<State>((set, get) => ({
    */
   back: () =>
     set((s) => {
-      if (s.selectedId !== null) return { selectedId: null }
-      if (s.path.length > 0) return { path: s.path.slice(0, -1), ...afterChoice }
+      if (s.selectedId !== null) return { selectedId: null, hoveredId: null }
+      if (s.path.length > 0)
+        return { path: s.path.slice(0, -1), hoveredId: null, ...afterChoice }
       // Leaving the galaxy entirely, so the ring goes too. Mid-crush presses
-      // fall through to a no-op rather than fighting the animation.
-      if (s.phase === 'galaxy') return { phase: 'intro' as Phase, ringOpen: false }
+      // fall through to a no-op rather than fighting the animation. Clear hover
+      // + selection: raycast is off once phase leaves galaxy, so pointerOut
+      // never fires and a sticky hoveredId would keep the star label alive.
+      if (s.phase === 'galaxy')
+        return {
+          phase: 'intro' as Phase,
+          ringOpen: false,
+          hoveredId: null,
+          selectedId: null,
+        }
       return s
     }),
 }))
