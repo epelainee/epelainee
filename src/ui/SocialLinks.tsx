@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { CRUSH_DURATION, useStore } from '../state/store'
 import { useContent } from '../content/useContent'
 import type { SocialIcon } from '../data/siteSettings'
+import { useViewport } from './useViewport'
 
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const PANEL_MS = 520
@@ -102,24 +103,27 @@ function IconGlyph({ icon }: { icon: SocialIcon }) {
   )
 }
 
-function Icons() {
+/** Icon row — nest under identity on compact intro; also used by fixed chrome. */
+export function SocialIconRow({ gap = '0.85rem' }: { gap?: string }) {
   const { siteSettings } = useContent()
   return (
-    <>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap }}>
       {siteSettings.socialLinks.map((link) => (
         <Icon key={`${link.label}-${link.url}`} label={link.label} href={link.url}>
           <IconGlyph icon={link.icon} />
         </Icon>
       ))}
-    </>
+    </span>
   )
 }
 
 /**
- * Intro: top-right icon row. Galaxy: bottom-left icons.
+ * Intro: top-right icon row (wide) or under identity (compact).
+ * Galaxy: bottom-left icons.
  * Dissolves with burst / detail panel.
  */
 export function SocialLinks() {
+  const { compact } = useViewport()
   const phase = useStore((s) => s.phase)
   const panelOpen = useStore((s) => s.selectedId !== null)
   const intro = phase === 'intro'
@@ -128,28 +132,31 @@ export function SocialLinks() {
 
   return (
     <>
-      <nav
-        aria-label="Social links"
-        aria-hidden={!intro}
-        style={{
-          position: 'fixed',
-          right: 'max(1.5rem, env(safe-area-inset-right))',
-          top: 'max(1.5rem, env(safe-area-inset-top))',
-          zIndex: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.85rem',
-          pointerEvents: intro ? 'auto' : 'none',
-          opacity: intro ? 1 : 0,
-          filter: intro ? 'blur(0)' : `blur(${DISSOLVE_BLUR})`,
-          transition: [
-            `opacity ${CRUSH_DURATION}s ${EASE}`,
-            `filter ${CRUSH_DURATION}s ${EASE}`,
-          ].join(', '),
-        }}
-      >
-        <Icons />
-      </nav>
+      {/* Wide intro only — compact nests icons under NamePlate identity. */}
+      {!compact && (
+        <nav
+          aria-label="Social links"
+          aria-hidden={!intro}
+          style={{
+            position: 'fixed',
+            right: 'max(1.5rem, env(safe-area-inset-right))',
+            top: 'max(1.5rem, env(safe-area-inset-top))',
+            zIndex: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.85rem',
+            pointerEvents: intro ? 'auto' : 'none',
+            opacity: intro ? 1 : 0,
+            filter: intro ? 'blur(0)' : `blur(${DISSOLVE_BLUR})`,
+            transition: [
+              `opacity ${CRUSH_DURATION}s ${EASE}`,
+              `filter ${CRUSH_DURATION}s ${EASE}`,
+            ].join(', '),
+          }}
+        >
+          <SocialIconRow />
+        </nav>
+      )}
 
       <nav
         aria-label="Social links"
@@ -173,7 +180,7 @@ export function SocialLinks() {
           ].join(', '),
         }}
       >
-        <Icons />
+        <SocialIconRow />
       </nav>
     </>
   )

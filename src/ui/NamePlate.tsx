@@ -1,6 +1,8 @@
 import type { CSSProperties } from 'react'
 import { CRUSH_DURATION, useStore } from '../state/store'
 import { useContent } from '../content/useContent'
+import { SocialIconRow } from './SocialLinks'
+import { useViewport } from './useViewport'
 
 const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
 /** Panel open/close dissolve — soft settle, not a hard cut. */
@@ -23,8 +25,8 @@ const nameStyle: CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-/** Keep multi-word names from wrapping mid-word awkwardly. */
-function nbspName(name: string) {
+/** Single-line name — nbsp so words never break apart. */
+function solidName(name: string) {
   return name.replace(/ /g, '\u00a0')
 }
 
@@ -34,12 +36,13 @@ function nbspName(name: string) {
  */
 export function NamePlate() {
   const { siteSettings } = useContent()
+  const { compact } = useViewport()
   const phase = useStore((s) => s.phase)
   const panelOpen = useStore((s) => s.selectedId !== null)
   const intro = phase === 'intro'
   const settled = phase === 'galaxy' || phase === 'crushing'
   const settledVisible = settled && !panelOpen
-  const displayName = nbspName(siteSettings.displayName)
+  const displayName = solidName(siteSettings.displayName)
 
   const introDissolve = {
     opacity: intro ? 1 : 0,
@@ -58,7 +61,11 @@ export function NamePlate() {
           ...chrome,
           left: 'max(1.25rem, env(safe-area-inset-left))',
           top: 'max(1.25rem, env(safe-area-inset-top))',
-          right: 'max(5.5rem, env(safe-area-inset-right))',
+          // Compact: full width — icons stack under identity, not beside it.
+          // Wide: leave a gutter for the top-right icon row.
+          right: compact
+            ? 'max(1.25rem, env(safe-area-inset-right))'
+            : 'max(5.5rem, env(safe-area-inset-right))',
           display: 'flex',
           flexDirection: 'column',
           gap: '0.55rem',
@@ -69,8 +76,11 @@ export function NamePlate() {
           style={{
             ...nameStyle,
             margin: 0,
-            whiteSpace: 'normal',
-            maxWidth: '100%',
+            whiteSpace: 'nowrap',
+            font: compact
+              ? '400 0.625rem/1 var(--mono)'
+              : nameStyle.font,
+            letterSpacing: compact ? '0.1em' : nameStyle.letterSpacing,
           }}
         >
           {displayName}
@@ -82,12 +92,25 @@ export function NamePlate() {
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
             color: 'rgba(255, 255, 255, 0.78)',
-            maxWidth: '16rem',
+            maxWidth: compact ? '100%' : '16rem',
             whiteSpace: 'normal',
           }}
         >
           {siteSettings.locationLine}
         </p>
+        {compact && (
+          <nav
+            aria-label="Social links"
+            aria-hidden={phase !== 'intro'}
+            style={{
+              display: 'flex',
+              marginTop: '0.15rem',
+              pointerEvents: intro ? 'auto' : 'none',
+            }}
+          >
+            <SocialIconRow gap="0.65rem" />
+          </nav>
+        )}
       </div>
 
       <p
@@ -95,12 +118,14 @@ export function NamePlate() {
         style={{
           ...chrome,
           left: 'max(1.25rem, env(safe-area-inset-left))',
-          bottom: 'max(1.25rem, env(safe-area-inset-bottom))',
           right: 'max(1.25rem, env(safe-area-inset-right))',
+          // Compact + wide: tagline sits on the bottom band (cue stacks above on compact).
+          bottom: 'max(1.25rem, env(safe-area-inset-bottom))',
           font: '400 0.6875rem/1.45 var(--mono)',
           letterSpacing: '0.06em',
-          // Wide enough for two lines; leave room for the intro cue on the right.
-          maxWidth: 'min(22rem, calc(100vw - 12rem))',
+          maxWidth: compact
+            ? 'min(22rem, calc(100vw - 2.5rem))'
+            : 'min(22rem, calc(100vw - 12rem))',
           whiteSpace: 'normal',
           ...introDissolve,
         }}
@@ -113,9 +138,11 @@ export function NamePlate() {
         style={{
           ...chrome,
           left: '50%',
-          // Low under the field — clears the galaxy shell, sits with bottom chrome.
-          bottom:
-            'max(1.75rem, calc(env(safe-area-inset-bottom) + 1.25rem))',
+          // Compact: sit above icons + BACK so the long name never collides.
+          // Wide: share the bottom chrome band with side chrome.
+          bottom: compact
+            ? 'max(3.75rem, calc(env(safe-area-inset-bottom) + 3.25rem))'
+            : 'max(1.75rem, calc(env(safe-area-inset-bottom) + 1.25rem))',
           transform: settledVisible
             ? 'translateX(-50%) translateY(0)'
             : 'translateX(-50%) translateY(8px)',
@@ -123,8 +150,8 @@ export function NamePlate() {
           flexDirection: 'column',
           alignItems: 'center',
           textAlign: 'center',
-          maxWidth: 'min(72vw, 20rem)',
-          padding: '0 0.5rem',
+          maxWidth: compact ? 'min(92vw, 22rem)' : 'min(72vw, 20rem)',
+          padding: '0 0.75rem',
           opacity: settledVisible ? 1 : 0,
           filter: settledVisible ? 'blur(0)' : `blur(${DISSOLVE_BLUR})`,
           transition: [
@@ -138,9 +165,11 @@ export function NamePlate() {
           style={{
             ...nameStyle,
             margin: 0,
-            font: '400 1rem/1.15 var(--mono)',
-            letterSpacing: '0.18em',
-            whiteSpace: 'normal',
+            font: compact
+              ? '400 0.6875rem/1 var(--mono)'
+              : '400 1rem/1.15 var(--mono)',
+            letterSpacing: compact ? '0.1em' : '0.18em',
+            whiteSpace: 'nowrap',
           }}
         >
           {displayName}

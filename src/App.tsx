@@ -20,7 +20,7 @@ export default function App() {
   const phase = useStore((s) => s.phase)
   const panelOpen = useStore((s) => s.selectedId !== null)
   const back = useStore((s) => s.back)
-  const { coarse, width } = useViewport()
+  const { coarse, width, compact } = useViewport()
   useBackKey()
 
   const galaxySettled = phase === 'galaxy'
@@ -64,19 +64,30 @@ export default function App() {
         aria-hidden={phase !== 'intro'}
         style={{
           position: 'fixed',
-          right: 'max(1.25rem, env(safe-area-inset-right))',
-          bottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+          // Compact: above tagline. Wide: bottom-right beside tagline.
+          ...(compact
+            ? {
+                left: 'max(1.25rem, env(safe-area-inset-left))',
+                right: 'max(1.25rem, env(safe-area-inset-right))',
+                textAlign: 'left' as const,
+                bottom:
+                  'max(3.75rem, calc(env(safe-area-inset-bottom) + 3.25rem))',
+              }
+            : {
+                right: 'max(1.25rem, env(safe-area-inset-right))',
+                left: 'auto',
+                textAlign: 'right' as const,
+                bottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+              }),
           zIndex: 20,
           margin: 0,
-          font: '400 0.625rem/1.3 var(--mono)',
+          font: '400 0.625rem/1 var(--mono)',
           letterSpacing: '0.14em',
           textTransform: 'uppercase',
           color: 'rgba(255, 255, 255, 0.9)',
           textShadow: '0 0 8px #000',
           pointerEvents: 'none',
-          // Two lines max: "{Click|Tap} the star" / "to explore!"
-          maxWidth: '9.5rem',
-          textAlign: 'right',
+          whiteSpace: 'nowrap',
           opacity: phase === 'intro' ? 1 : 0,
           filter: phase === 'intro' ? 'blur(0)' : 'blur(6px)',
           transition: [
@@ -85,9 +96,7 @@ export default function App() {
           ].join(', '),
         }}
       >
-        {coarse ? 'Tap' : 'Click'} the star
-        <br />
-        to explore!
+        {coarse ? 'Tap' : 'Click'} the star to explore!
       </p>
 
       {/* Desktop keyboard hint. */}

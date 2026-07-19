@@ -47,9 +47,12 @@ const dummy = new Object3D()
  * fall between samples and flicker as it drifts. NODE_RADIUS is set against
  * that floor, not for looks alone.
  */
-const NODE_RADIUS = 0.115
-/** Flat stars read smaller than spheres of the same radius under the halftone. */
-const STAR_OUTER = NODE_RADIUS * 1.35
+const NODE_RADIUS = 0.065
+/**
+ * Flat internship / certification stars.
+ * Kept under sphere radius so they read as the little marks, not mini hubs.
+ */
+const STAR_OUTER = NODE_RADIUS * 0.95
 const DUST_COUNT = 6000
 
 /**

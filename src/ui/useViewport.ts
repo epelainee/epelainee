@@ -11,14 +11,21 @@ export type Viewport = {
   /** No hover available — pointer is a finger. */
   coarse: boolean
   width: number
+  /** Touch or skinny window — bottom/top chrome must stack, not share one band. */
+  compact: boolean
 }
 
-const read = (): Viewport => ({
-  coarse:
+const read = (): Viewport => {
+  const width = typeof window === 'undefined' ? 1280 : window.innerWidth
+  const coarse =
     typeof window !== 'undefined' &&
-    window.matchMedia('(hover: none), (pointer: coarse)').matches,
-  width: typeof window === 'undefined' ? 1280 : window.innerWidth,
-})
+    window.matchMedia('(hover: none), (pointer: coarse)').matches
+  return {
+    coarse,
+    width,
+    compact: coarse || width < 640,
+  }
+}
 
 export function useViewport(): Viewport {
   const [vp, setVp] = useState(read)
