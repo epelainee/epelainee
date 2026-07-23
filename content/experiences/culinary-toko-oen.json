@@ -2,7 +2,12 @@
   "id": "culinary-toko-oen",
   "title": "Culinary Intern",
   "org": "Toko Oen",
-  "subcategory": "crea-culinary",
+  "subcategories": [
+    "crea-culinary"
+  ],
+  "dates": "December 2023 – January 2024",
+  "location": "Surabaya, Indonesia",
+  "blurb": "Worked across food preparation, kitchen organization, plating, and restaurant service at a longstanding Dutch & Asian culinary establishment.",
   "kind": "internship",
   "order": 7
 }
