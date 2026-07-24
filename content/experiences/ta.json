@@ -1,0 +1,11 @@
+{
+  "id": "ta",
+  "title": "TA",
+  "org": "Trinity Western University",
+  "subcategories": [
+    "hum-education",
+    "sci-quant",
+    "sci-social"
+  ],
+  "order": 0
+}
